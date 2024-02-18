@@ -50,6 +50,7 @@ __all__ = [
     'TimedFilter',
     'UserFilter',
     'SilenceGeneratorSink',
+    'MultiWaveSink'
 ]
 
 
@@ -288,6 +289,44 @@ class BasicSink(AudioSink):
 
     def cleanup(self) -> None:
         pass
+
+
+class MultiWaveSink(AudioSink):
+    """Endpoint AudioSink that generates a wav file.
+    Best used in conjunction with a silence generating sink. (TBD)
+    """
+    
+
+    CHANNELS = OpusDecoder.CHANNELS
+    SAMPLE_WIDTH = OpusDecoder.SAMPLE_SIZE // OpusDecoder.CHANNELS
+    SAMPLING_RATE = OpusDecoder.SAMPLING_RATE
+
+    def __init__(self, user_destinations: Dict[str, wave._File]):
+        super().__init__()
+
+        self._parent_file = wave.open(f"{' '.join(user_destinations.keys())}", "wb")
+        self._files: Dict[str, wave.Wave_write] = {}
+        for user_name, file_loc in user_destinations.items():
+            self._files[user_name] = wave.open(file_loc, 'wb')
+            self._files[user_name].setnchannels(self.CHANNELS)
+            self._files[user_name].setsampwidth(self.SAMPLE_WIDTH)
+            self._files[user_name].setframerate(self.SAMPLING_RATE)
+
+    def wants_opus(self) -> bool:
+        return False
+
+    def write(self, user: Optional[User], data: VoiceData) -> None:
+        if self._files.get(user.display_name):
+            self._files[user.display_name].writeframes(data.pcm)
+        self._parent_file.writeframes(data.pcm)
+
+    def cleanup(self) -> None:
+        try:
+            for file in self._files.values():
+                file.close()
+            self._parent_file.close()
+        except Exception:
+            log.warning("WaveSink got error closing file on cleanup", exc_info=True)
 
 
 class WaveSink(AudioSink):
