@@ -301,11 +301,12 @@ class MultiWaveSink(AudioSink):
     SAMPLE_WIDTH = OpusDecoder.SAMPLE_SIZE // OpusDecoder.CHANNELS
     SAMPLING_RATE = OpusDecoder.SAMPLING_RATE
 
-    def __init__(self, user_destinations: Dict[str, wave._File]):
+    def __init__(self, user_destinations: Dict[str, wave._File], user_exclusions: List[str]):
         super().__init__()
 
         self._parent_file = wave.open(f"{' '.join(user_destinations.keys())}", "wb")
         self._files: Dict[str, wave.Wave_write] = {}
+        self._exclusions = user_exclusions
         for user_name, file_loc in user_destinations.items():
             self._files[user_name] = wave.open(file_loc, 'wb')
             self._files[user_name].setnchannels(self.CHANNELS)
@@ -316,7 +317,8 @@ class MultiWaveSink(AudioSink):
         return False
 
     def write(self, user: Optional[User], data: VoiceData) -> None:
-        if self._files.get(user.display_name):
+        log.info('writing data for user: %s', user)
+        if user and self._files.get(user.display_name) and user.name not in self._exclusions:
             self._files[user.display_name].writeframes(data.pcm)
         self._parent_file.writeframes(data.pcm)
 
