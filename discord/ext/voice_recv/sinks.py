@@ -240,7 +240,7 @@ class AudioSink(SinkABC):
 
 class MultiAudioSink(AudioSink):
     def __init__(self, destinations: Sequence[AudioSink], /):
-        # Intentionally not calling super().__init__ here
+        # Intentionally not calling super().__init__ here a
         if destinations is not None:
             for dest in destinations:
                 self._register_child(dest)
