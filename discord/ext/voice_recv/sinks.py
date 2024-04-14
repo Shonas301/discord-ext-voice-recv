@@ -320,6 +320,8 @@ class MultiWaveSink(AudioSink):
         log.info('writing data for user: %s', user)
         if user and self._files.get(user.display_name) and user.name not in self._exclusions:
             self._files[user.display_name].writeframes(data.pcm)
+        if user and user.name in self._exclusions:
+            return
         self._parent_file.writeframes(data.pcm)
 
     def cleanup(self) -> None:
