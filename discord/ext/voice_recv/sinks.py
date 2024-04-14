@@ -17,6 +17,8 @@ from .opus import VoiceData
 from .silence import SilenceGenerator
 
 import discord
+import scipy
+import numpy as np
 
 from discord.utils import MISSING, SequenceProxy
 from discord.opus import Decoder as OpusDecoder
@@ -305,34 +307,46 @@ class MultiWaveSink(AudioSink):
         super().__init__()
 
         self._parent_file_name = f"{' '.join(user_destinations.keys())}.wav"
-        self._parent_file = wave.open(self._parent_file_name, "wb")
-        self._parent_file.setnchannels(self.CHANNELS)
-        self._parent_file.setsampwidth(self.SAMPLE_WIDTH)
-        self._parent_file.setframerate(self.SAMPLING_RATE)
+        # self._parent_file = wave.open(self._parent_file_name, "wb")
+        # self._parent_file.setnchannels(self.CHANNELS)
+        # self._parent_file.setsampwidth(self.SAMPLE_WIDTH)
+        # self._parent_file.setframerate(self.SAMPLING_RATE)
+        self._parent_file_audio = []
         self._files = {}
+        self._files_audio = {}
         self._exclusions = user_exclusions
         for user_name, file_loc in user_destinations.items():
-            self._files[user_name] = wave.open(file_loc, 'wb')
-            self._files[user_name].setnchannels(self.CHANNELS)
-            self._files[user_name].setsampwidth(self.SAMPLE_WIDTH)
-            self._files[user_name].setframerate(self.SAMPLING_RATE)
+            self._files_audio[user_name] = {'file_loc': file_loc, 'data': []}
+            # self._files[user_name] = wave.open(file_loc, 'wb')
+            # self._files[user_name].setnchannels(self.CHANNELS)
+            # self._files[user_name].setsampwidth(self.SAMPLE_WIDTH)
+            # self._files[user_name].setframerate(self.SAMPLING_RATE)
 
     def wants_opus(self) -> bool:
         return False
 
     def write(self, user: Optional[User], data: VoiceData) -> None:
-        log.info('writing data for user: %s', user)
         if user and self._files.get(user.display_name) and user.name not in self._exclusions:
-            self._files[user.display_name].writeframes(data.pcm)
+            log.info('writing data for user: %s', user)
+            # self._files[user.display_name].writeframes(data.pcm)
+            self._files_audio[user.display_name]['data'] += data.pcm
         if user and user.name in self._exclusions:
             return
-        self._parent_file.writeframes(data.pcm)
+        self._parent_file_audio += data.pcm
+        # self._parent_file.writeframes(data.pcm)
 
     def cleanup(self) -> None:
         try:
-            for file in self._files.values():
-                file.close()
-            self._parent_file.close()
+            for user in self._files_audio:
+                log.error(user['data'])
+                audio_data = np.array(user['data'], dtype=float)
+                scipy.io.wavefile.write(user['file_loc'], MultiWaveSink.SAMPLING_RATE, audio_data)
+            audio_data = np.array(self._parent_file_audio, dtype=float)
+            scipy.io.wavefile.write(self._parent_file_audio, MultiWaveSink.SAMPLING_RATE, audio_data)
+
+            # for file in self._files.values():
+            #     file.close()
+            # self._parent_file.close()
         except Exception:
             log.warning("WaveSink got error closing file on cleanup", exc_info=True)
     
