@@ -406,10 +406,32 @@ class MultiWaveSinkSilence(AudioSink):
     def __init__(self, user_destinations: Dict[str, wave._File], user_exclusions: List[str]):
         self._parent_file_name = f"{'_'.join(user_destinations.keys())}.wav"
         self._children = []
+        self._sinks = {}
+        wav_sink = WaveSink(self._parent_file_name)
+        silence_sink = SilenceGeneratorSink(wav_sink)
+        self._parent_sink = silence_sink
+        self._register_child(silence_sink)
         for user_name, file_loc in user_destinations.items():
             wav_sink = WaveSinkUser(file_loc, user_name)
             silence_sink = SilenceGeneratorSink(wav_sink)
+            self._sinks[user_name] = silence_sink
             self._register_child(silence_sink)
+
+    def wants_opus(self) -> bool:
+        return False
+
+    def write(self, user: Optional[User], data: VoiceData):
+        if user and user.display_name in self._sinks:
+            self._sinks[user.display_name].write(data)
+        self._parent_sink.write(user, data)
+
+    def cleanup(self) -> None:
+        try:
+            self._parent_sink.cleanup()
+            for sink in self._sinks:
+                sink.cleanup()
+        except Exception:
+            log.warning("WaveSink got error closing file on cleanup", exc_info=True)
         
 
     def _register_child(self, child: AudioSink) -> None:
