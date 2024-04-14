@@ -305,7 +305,10 @@ class MultiWaveSink(AudioSink):
         super().__init__()
 
         self._parent_file = wave.open(f"{' '.join(user_destinations.keys())}", "wb")
-        self._files: Dict[str, wave.Wave_write] = {}
+        self._parent_file.setnchannels(self.CHANNELS)
+        self._parent_file.setsampwidth(self.SAMPLE_WIDTH)
+        self._parent_file.setframerate(self.SAMPLING_RATE)
+        self = {}
         self._exclusions = user_exclusions
         for user_name, file_loc in user_destinations.items():
             self._files[user_name] = wave.open(file_loc, 'wb')
