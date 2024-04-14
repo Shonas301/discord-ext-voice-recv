@@ -304,7 +304,8 @@ class MultiWaveSink(AudioSink):
     def __init__(self, user_destinations: Dict[str, wave._File], user_exclusions: List[str]):
         super().__init__()
 
-        self._parent_file = wave.open(f"{' '.join(user_destinations.keys())}.wav", "wb")
+        self._parent_file_name = f"{' '.join(user_destinations.keys())}.wav"
+        self._parent_file = wave.open(self._parent_file_name, "wb")
         self._parent_file.setnchannels(self.CHANNELS)
         self._parent_file.setsampwidth(self.SAMPLE_WIDTH)
         self._parent_file.setframerate(self.SAMPLING_RATE)
@@ -334,6 +335,9 @@ class MultiWaveSink(AudioSink):
             self._parent_file.close()
         except Exception:
             log.warning("WaveSink got error closing file on cleanup", exc_info=True)
+    
+    def get_parent_file(self) -> str:
+        return self._parent_file_name
 
 
 class WaveSink(AudioSink):
