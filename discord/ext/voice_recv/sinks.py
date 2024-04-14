@@ -448,6 +448,9 @@ class MultiWaveSinkSilence(AudioSink):
     @property
     def children(self) -> Sequence[AudioSink]:
         return SequenceProxy(self._children)
+
+    def get_parent_file(self) -> str:
+        return self._parent_file_name
         
 
 
