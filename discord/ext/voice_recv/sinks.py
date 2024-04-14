@@ -52,7 +52,8 @@ __all__ = [
     'TimedFilter',
     'UserFilter',
     'SilenceGeneratorSink',
-    'MultiWaveSink'
+    'MultiWaveSink',
+    "MultiWaveSinkSilence"
 ]
 
 
@@ -354,6 +355,7 @@ class MultiWaveSink(AudioSink):
         return self._parent_file_name
 
 
+
 class WaveSink(AudioSink):
     """Endpoint AudioSink that generates a wav file.
     Best used in conjunction with a silence generating sink. (TBD)
@@ -382,6 +384,49 @@ class WaveSink(AudioSink):
             self._file.close()
         except Exception:
             log.warning("WaveSink got error closing file on cleanup", exc_info=True)
+
+class WaveSinkUser(WaveSink):
+    """Endpoint AudioSink that generates a wav file.
+    Best used in conjunction with a silence generating sink. (TBD)
+    """
+    def __init__(self, destination: wave._File, user: str):
+        super().__init__(destination)
+
+        self._user = user
+
+    def write(self, user: Optional[User], data: VoiceData) -> None:
+        if user and user.display_name == user:
+            self._file.writeframes(data.pcm)
+
+class MultiWaveSinkSilence(AudioSink):
+    """Endpoint AudioSink that generates a wav file.
+    Best used in conjunction with a silence generating sink. (TBD)
+    """
+
+    def __init__(self, user_destinations: Dict[str, wave._File], user_exclusions: List[str]):
+        self._parent_file_name = f"{'_'.join(user_destinations.keys())}.wav"
+        self._children = []
+        for user_name, file_loc in user_destinations.items():
+            wav_sink = WaveSinkUser(file_loc, user_name)
+            silence_sink = SilenceGeneratorSink(wav_sink)
+            self._register_child(silence_sink)
+        
+
+    def _register_child(self, child: AudioSink) -> None:
+        if child in self.root.walk_children():
+            raise RuntimeError('Sink is already registered.')
+
+        child._parent = self
+        self._children.append(child)
+
+    @property
+    def child(self) -> Optional[AudioSink]:
+        return self._children[0] if self._children else None
+
+    @property
+    def children(self) -> Sequence[AudioSink]:
+        return SequenceProxy(self._children)
+        
 
 
 class FFmpegSink(AudioSink):
